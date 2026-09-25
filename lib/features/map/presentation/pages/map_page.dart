@@ -13,6 +13,7 @@ import '../../domain/usecases/get_user_location_usecase.dart';
 import '../cubit/map_cubit.dart';
 import '../cubit/map_state.dart';
 import '../widgets/error_card.dart';
+import '../widgets/map_compass_button.dart';
 import '../widgets/map_view_widget.dart';
 import '../widgets/poi_detail_sheet.dart';
 import '../widgets/return_to_yogyakarta_chip.dart';
@@ -41,6 +42,7 @@ class _MapPageState extends State<MapPage> {
   http.Client? _httpClient;
   final GlobalKey<MapViewWidgetState> _mapViewKey = GlobalKey<MapViewWidgetState>();
   bool _isStyleLoaded = false;
+  double _currentBearing = 0.0;
 
   @override
   void initState() {
@@ -234,6 +236,13 @@ class _MapPageState extends State<MapPage> {
                       selectedFeature: state.selectedFeature,
                       userLocation: state.userLocation,
                       onStyleLoaded: _handleStyleLoaded,
+                      onCameraBearingChanged: (bearing) {
+                        if (mounted && (_currentBearing - bearing).abs() > 0.1) {
+                          setState(() {
+                            _currentBearing = bearing;
+                          });
+                        }
+                      },
                       onFeatureTapped: (feature) {
                         _cubit.selectFeature(feature);
                       },
@@ -296,7 +305,19 @@ class _MapPageState extends State<MapPage> {
                     ),
                   ),
 
-                  // 5. On-Demand User Location Floating Action Button (REQ-005, GUD-001)
+                  // 5. Independent Floating Compass Button (Placed directly above Location FAB)
+                  Positioned(
+                    right: 16,
+                    bottom: (state.selectedFeature != null ? sheetClearance : 60) + 56,
+                    child: MapCompassButton(
+                      bearing: _currentBearing,
+                      onPressed: () {
+                        _mapViewKey.currentState?.resetNorth();
+                      },
+                    ),
+                  ),
+
+                  // 6. On-Demand User Location Floating Action Button (REQ-005, GUD-001)
                   Positioned(
                     right: 16,
                     bottom: state.selectedFeature != null ? sheetClearance : 60,

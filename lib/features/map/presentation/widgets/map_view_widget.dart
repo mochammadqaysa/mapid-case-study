@@ -17,6 +17,7 @@ class MapViewWidget extends StatefulWidget {
   final List<MapFeatureEntity> features;
   final MapFeatureEntity? selectedFeature;
   final UserLocationEntity? userLocation;
+  final ValueChanged<double>? onCameraBearingChanged;
   final ValueChanged<MapFeatureEntity>? onFeatureTapped;
   final VoidCallback? onMapClick;
   final void Function(MapLibreMapController controller)? onMapCreated;
@@ -29,6 +30,7 @@ class MapViewWidget extends StatefulWidget {
     this.features = const [],
     this.selectedFeature,
     this.userLocation,
+    this.onCameraBearingChanged,
     this.onFeatureTapped,
     this.onMapClick,
     this.onMapCreated,
@@ -42,6 +44,7 @@ class MapViewWidget extends StatefulWidget {
 
 class MapViewWidgetState extends State<MapViewWidget> {
   MapLibreMapController? _controller;
+  double _currentBearing = 0.0;
   bool _isLayerAdded = false;
   bool _isSelectedFeatureLayerAdded = false;
   bool _isUserLocationLayerAdded = false;
@@ -52,10 +55,12 @@ class MapViewWidgetState extends State<MapViewWidget> {
   Timer? _tapDebounceTimer;
 
   MapLibreMapController? get controller => _controller;
+  double get currentBearing => _currentBearing;
 
   @override
   void dispose() {
     _tapDebounceTimer?.cancel();
+    _controller?.removeListener(_handleCameraChange);
     _controller?.onFeatureTapped.remove(_handleFeatureTapped);
     _controller = null;
     super.dispose();
@@ -85,6 +90,16 @@ class MapViewWidgetState extends State<MapViewWidget> {
     widget.onMapCreated?.call(controller);
 
     controller.onFeatureTapped.add(_handleFeatureTapped);
+    controller.addListener(_handleCameraChange);
+  }
+
+  void _handleCameraChange() {
+    if (!mounted || _controller == null) return;
+    final bearing = _controller!.cameraPosition?.bearing ?? 0.0;
+    if ((bearing - _currentBearing).abs() > 0.1) {
+      _currentBearing = bearing;
+      widget.onCameraBearingChanged?.call(bearing);
+    }
   }
 
   Future<void> _handleStyleLoaded() async {
@@ -457,6 +472,17 @@ class MapViewWidgetState extends State<MapViewWidget> {
     }
   }
 
+  /// Smoothly animates the camera bearing back to true North (0.0 degrees).
+  void resetNorth() {
+    final ctrl = _controller;
+    if (!mounted || ctrl == null) return;
+    try {
+      ctrl.animateCamera(CameraUpdate.bearingTo(0.0));
+    } catch (e) {
+      debugPrint('Notice: resetNorth failed: $e');
+    }
+  }
+
   void _handleMapClick(Point<double> point, LatLng coordinates) {
     if (!mounted || _isFeatureTapped) return;
     widget.onMapClick?.call();
@@ -487,9 +513,7 @@ class MapViewWidgetState extends State<MapViewWidget> {
       myLocationEnabled: false, // On-demand tracking only per ADR-0001
       myLocationTrackingMode: MyLocationTrackingMode.none,
       trackCameraPosition: true,
-      compassEnabled: true,
-      compassViewPosition: CompassViewPosition.topRight,
-      compassViewMargins: const Point(16, 76),
+      compassEnabled: false, // Disabled native compass in favor of independent Flutter custom compass button
       attributionButtonMargins: const Point(-100, -100),
     );
   }
