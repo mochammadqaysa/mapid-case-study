@@ -22,9 +22,12 @@ abstract final class AppConstants {
   // Defensive Null Safety (GUD-003)
   static const String fallbackPlaceholder = '-';
 
-  // MapLibre Layer & Source Identifiers (REQ-003, REQ-005)
+  // MapLibre Layer & Source Identifiers (REQ-003, REQ-005, REQ-004)
   static const String geoJsonSourceId = 'geomapid-features-source';
   static const String circleLayerId = 'geomapid-features-circle-layer';
+  static const String selectedFeatureSourceId = 'selected-feature-source';
+  static const String selectedFeatureCircleLayerId = 'selected-feature-circle-layer';
+  static const String selectedFeatureHaloLayerId = 'selected-feature-halo-layer';
   static const String userLocationSourceId = 'user-location-source';
   static const String userLocationCircleLayerId = 'user-location-circle-layer';
   static const String userLocationHaloLayerId = 'user-location-halo-layer';

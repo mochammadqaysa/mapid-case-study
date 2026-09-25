@@ -15,6 +15,7 @@ import '../../domain/entities/user_location_entity.dart';
 class MapViewWidget extends StatefulWidget {
   final IEnvConfig envConfig;
   final List<MapFeatureEntity> features;
+  final MapFeatureEntity? selectedFeature;
   final UserLocationEntity? userLocation;
   final ValueChanged<MapFeatureEntity>? onFeatureTapped;
   final VoidCallback? onMapClick;
@@ -26,6 +27,7 @@ class MapViewWidget extends StatefulWidget {
     super.key,
     required this.envConfig,
     this.features = const [],
+    this.selectedFeature,
     this.userLocation,
     this.onFeatureTapped,
     this.onMapClick,
@@ -41,9 +43,11 @@ class MapViewWidget extends StatefulWidget {
 class MapViewWidgetState extends State<MapViewWidget> {
   MapLibreMapController? _controller;
   bool _isLayerAdded = false;
+  bool _isSelectedFeatureLayerAdded = false;
   bool _isUserLocationLayerAdded = false;
   bool _isFeatureTapped = false;
   bool _isInjectingLayerData = false;
+  bool _isInjectingSelectedFeature = false;
   bool _isInjectingUserLocation = false;
   Timer? _tapDebounceTimer;
 
@@ -64,6 +68,9 @@ class MapViewWidgetState extends State<MapViewWidget> {
     if (widget.features != oldWidget.features) {
       _injectLayerData();
     }
+    if (widget.selectedFeature != oldWidget.selectedFeature) {
+      _injectSelectedFeature();
+    }
     if (widget.userLocation != oldWidget.userLocation) {
       _injectUserLocation();
       if (widget.userLocation != null) {
@@ -83,6 +90,9 @@ class MapViewWidgetState extends State<MapViewWidget> {
   Future<void> _handleStyleLoaded() async {
     widget.onStyleLoaded?.call();
     await _injectLayerData();
+    if (widget.selectedFeature != null) {
+      await _injectSelectedFeature();
+    }
     if (widget.userLocation != null) {
       await _injectUserLocation();
     }
@@ -114,6 +124,9 @@ class MapViewWidgetState extends State<MapViewWidget> {
     };
 
     try {
+      debugPrint(
+        '[MapViewWidget] Injecting ${widget.features.length} GeoJSON feature(s) into MapLibre source...',
+      );
       if (!_isLayerAdded) {
         await ctrl.addGeoJsonSource(
           AppConstants.geoJsonSourceId,
@@ -124,11 +137,11 @@ class MapViewWidgetState extends State<MapViewWidget> {
           AppConstants.geoJsonSourceId,
           AppConstants.circleLayerId,
           const CircleLayerProperties(
-            circleRadius: 8.0,
-            circleColor: '#0284C7', // AppColors.mapPinDefault (Sky Blue 600)
-            circleStrokeWidth: 2.0,
+            circleRadius: 7.5,
+            circleColor: '#0284C7', // AppColors.mapPinDefault (Sky Blue 600 - Inactive POI)
+            circleStrokeWidth: 1.5,
             circleStrokeColor: '#FFFFFF', // High-contrast border (antislop-ui)
-            circleOpacity: 0.95,
+            circleOpacity: 0.90,
           ),
           enableInteraction: true,
         );
@@ -136,6 +149,9 @@ class MapViewWidgetState extends State<MapViewWidget> {
           setState(() {
             _isLayerAdded = true;
           });
+          debugPrint(
+            '[MapViewWidget] GeoJSON circle layer "${AppConstants.circleLayerId}" added to map successfully.',
+          );
         }
       } else {
         if (!mounted || _controller == null) return;
@@ -143,9 +159,12 @@ class MapViewWidgetState extends State<MapViewWidget> {
           AppConstants.geoJsonSourceId,
           geoJsonData,
         );
+        debugPrint(
+          '[MapViewWidget] GeoJSON source "${AppConstants.geoJsonSourceId}" updated successfully.',
+        );
       }
     } catch (e) {
-      debugPrint('Notice: Error injecting GeoJSON source/layer into MapLibre: $e');
+      debugPrint('[MapViewWidget] Error injecting GeoJSON source/layer into MapLibre: $e');
     } finally {
       _isInjectingLayerData = false;
     }
@@ -229,6 +248,96 @@ class MapViewWidgetState extends State<MapViewWidget> {
       debugPrint('Notice: Error injecting User Location layer into MapLibre: $e');
     } finally {
       _isInjectingUserLocation = false;
+    }
+  }
+
+  /// Injects or updates selected POI feature marker and halo ring with concurrency mutex guard (REQ-004, antislop-ui).
+  Future<void> _injectSelectedFeature() async {
+    final ctrl = _controller;
+    if (!mounted || ctrl == null) return;
+    if (_isInjectingSelectedFeature) return;
+    _isInjectingSelectedFeature = true;
+
+    final List<Map<String, dynamic>> selectedFeatures = [];
+    if (widget.selectedFeature != null) {
+      final f = widget.selectedFeature!;
+      selectedFeatures.add({
+        'type': 'Feature',
+        'id': f.id,
+        'geometry': {
+          'type': 'Point',
+          'coordinates': [f.longitude, f.latitude],
+        },
+        'properties': {
+          'NAMA': f.name,
+          'ALAMAT': f.address,
+          'KECAMATAN': f.district,
+          'WAKTU': f.recordTime,
+        },
+      });
+    }
+
+    final geoJsonData = {
+      'type': 'FeatureCollection',
+      'features': selectedFeatures,
+    };
+
+    try {
+      if (!_isSelectedFeatureLayerAdded) {
+        await ctrl.addGeoJsonSource(
+          AppConstants.selectedFeatureSourceId,
+          geoJsonData,
+        );
+        if (!mounted || _controller == null) return;
+
+        // Outer focus halo / ring (antislop-ui: deliberate focus indicator, no endless pulsing)
+        await ctrl.addCircleLayer(
+          AppConstants.selectedFeatureSourceId,
+          AppConstants.selectedFeatureHaloLayerId,
+          const CircleLayerProperties(
+            circleRadius: 16.0,
+            circleColor: '#0284C7',
+            circleOpacity: 0.20,
+            circleStrokeWidth: 1.5,
+            circleStrokeColor: '#1E3A8A', // Deep Royal Blue focus ring
+          ),
+        );
+        if (!mounted || _controller == null) return;
+
+        // Inner prominent active puck
+        await ctrl.addCircleLayer(
+          AppConstants.selectedFeatureSourceId,
+          AppConstants.selectedFeatureCircleLayerId,
+          const CircleLayerProperties(
+            circleRadius: 10.0,
+            circleColor: '#1E3A8A', // AppColors.primary (Deep Royal Blue)
+            circleStrokeWidth: 2.5,
+            circleStrokeColor: '#FFFFFF', // High-contrast border
+            circleOpacity: 1.0,
+          ),
+        );
+        if (mounted && _controller != null) {
+          setState(() {
+            _isSelectedFeatureLayerAdded = true;
+          });
+          debugPrint(
+            '[MapViewWidget] Selected feature highlight layer added successfully.',
+          );
+        }
+      } else {
+        if (!mounted || _controller == null) return;
+        await ctrl.setGeoJsonSource(
+          AppConstants.selectedFeatureSourceId,
+          geoJsonData,
+        );
+        debugPrint(
+          '[MapViewWidget] Selected feature source updated (hasSelection: ${widget.selectedFeature != null}).',
+        );
+      }
+    } catch (e) {
+      debugPrint('[MapViewWidget] Error injecting selected feature layer: $e');
+    } finally {
+      _isInjectingSelectedFeature = false;
     }
   }
 

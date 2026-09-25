@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/distance_calculator.dart';
@@ -20,6 +21,7 @@ class MapCubit extends Cubit<MapState> {
 
   /// Loads Layer Data from remote GEO MAPID endpoint.
   Future<void> loadLayerData() async {
+    debugPrint('[MapCubit] loadLayerData() called. Emitting MapStatus.loading...');
     emit(state.copyWith(
       status: MapStatus.loading,
       clearErrorMessage: true,
@@ -29,6 +31,9 @@ class MapCubit extends Cubit<MapState> {
 
     result.fold(
       (failure) {
+        debugPrint(
+          '[MapCubit] loadLayerData FAILED: [${failure.runtimeType}] ${failure.message}',
+        );
         emit(state.copyWith(
           status: MapStatus.failure,
           errorMessage: failure.message,
@@ -36,11 +41,15 @@ class MapCubit extends Cubit<MapState> {
       },
       (features) {
         if (features.isEmpty) {
+          debugPrint('[MapCubit] loadLayerData SUCCESS: 0 features returned (Empty).');
           emit(state.copyWith(
             status: MapStatus.empty,
             features: const [],
           ));
         } else {
+          debugPrint(
+            '[MapCubit] loadLayerData SUCCESS: ${features.length} feature(s) loaded.',
+          );
           emit(state.copyWith(
             status: MapStatus.loaded,
             features: features,

@@ -8,6 +8,7 @@ import 'package:mapid/features/map/domain/entities/map_feature_entity.dart';
 import 'package:mapid/features/map/presentation/cubit/map_cubit.dart';
 import 'package:mapid/features/map/presentation/cubit/map_state.dart';
 import 'package:mapid/features/map/presentation/pages/map_page.dart';
+import 'package:mapid/features/map/presentation/widgets/error_card.dart';
 import 'package:mapid/features/map/presentation/widgets/map_view_widget.dart';
 import 'package:mapid/features/map/presentation/widgets/poi_detail_sheet.dart';
 import 'package:mapid/features/map/presentation/widgets/return_to_yogyakarta_chip.dart';
@@ -116,6 +117,24 @@ void main() {
       verify(() => mockMapCubit.clearSelectedFeature()).called(1);
     });
 
+    testWidgets('passes selectedFeature to MapViewWidget when state has selected feature',
+        (WidgetTester tester) async {
+      when(() => mockMapCubit.state).thenReturn(
+        const MapState(
+          status: MapStatus.loaded,
+          features: [sampleFeature],
+          selectedFeature: sampleFeature,
+        ),
+      );
+
+      await tester.pumpWidget(createWidgetUnderTest(cubit: mockMapCubit));
+
+      final mapViewFinder = find.byType(MapViewWidget);
+      expect(mapViewFinder, findsOneWidget);
+      final mapView = tester.widget<MapViewWidget>(mapViewFinder);
+      expect(mapView.selectedFeature, equals(sampleFeature));
+    });
+
     testWidgets('renders error banner and triggers retry on button tap (REQ-007, AC-007)',
         (WidgetTester tester) async {
       when(() => mockMapCubit.state).thenReturn(
@@ -128,7 +147,8 @@ void main() {
 
       await tester.pumpWidget(createWidgetUnderTest(cubit: mockMapCubit));
 
-      expect(find.text('Koneksi jaringan terputus'), findsOneWidget);
+      expect(find.text('Gagal memuat data layer'), findsOneWidget);
+      expect(find.byType(ErrorCard), findsOneWidget);
       final retryButton = find.byKey(const Key('map_error_retry_button'));
       expect(retryButton, findsOneWidget);
 

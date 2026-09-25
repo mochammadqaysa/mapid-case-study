@@ -10,11 +10,26 @@ void main() async {
   // Load environment variables safely (SEC-001)
   try {
     await dotenv.load(fileName: '.env');
+    debugPrint('[Main] Successfully loaded .env file.');
   } catch (e) {
-    debugPrint('Notice: .env file not found or failed to load. Using defaults.');
+    debugPrint('[Main] Notice: .env file not found or failed to load ($e). Using compile-time defaults.');
   }
 
   final envConfig = EnvConfig();
+  final hasApiKey = envConfig.mapidApiKey.isNotEmpty;
+  final maskedKey = hasApiKey
+      ? (envConfig.mapidApiKey.length > 6
+          ? '${envConfig.mapidApiKey.substring(0, 4)}...${envConfig.mapidApiKey.substring(envConfig.mapidApiKey.length - 2)}'
+          : '***')
+      : '<EMPTY>';
+
+  debugPrint(
+    '[Main] EnvConfig initialized -> '
+    'API_KEY: $maskedKey, '
+    'LAYER_ID: "${envConfig.mapidLayerId}", '
+    'PROJECT_ID: "${envConfig.mapidProjectId}", '
+    'GEOSERVER_URL: "${envConfig.geoServerBaseUrl}"',
+  );
 
   runApp(MapidApp(envConfig: envConfig));
 }

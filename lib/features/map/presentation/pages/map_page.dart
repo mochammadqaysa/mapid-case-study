@@ -85,6 +85,7 @@ class _MapPageState extends State<MapPage> {
     setState(() {
       _isStyleLoaded = true;
     });
+    debugPrint('[MapPage] Basemap style loaded. Triggering loadLayerData()...');
     // Trigger GeoJSON layer data ingestion once basemap style is loaded (REQ-002, REQ-003)
     _cubit.loadLayerData();
   }
@@ -230,6 +231,7 @@ class _MapPageState extends State<MapPage> {
                       key: _mapViewKey,
                       envConfig: widget.envConfig,
                       features: state.features,
+                      selectedFeature: state.selectedFeature,
                       userLocation: state.userLocation,
                       onStyleLoaded: _handleStyleLoaded,
                       onFeatureTapped: (feature) {
@@ -243,23 +245,26 @@ class _MapPageState extends State<MapPage> {
                   ),
 
                   // 2. Error Notification Banner with Retry Action (REQ-007, AC-007)
-                  if (state.status == MapStatus.failure && state.errorMessage != null)
+                  if (state.status == MapStatus.failure)
                     Positioned(
                       top: 12,
                       left: 16,
                       right: 16,
                       child: ErrorCard(
-                        errorMessage: state.errorMessage!,
-                        onRetry: () => _cubit.loadLayerData(),
+                        errorMessage: 'Gagal memuat data layer',
+                        onRetry: () {
+                          debugPrint(
+                            '[MapPage] User tapped "Coba Lagi" (Retry) on ErrorCard. Retrying loadLayerData()...',
+                          );
+                          _cubit.loadLayerData();
+                        },
                       ),
                     ),
 
                   // 3. Floating "Kembali ke Yogyakarta" Recenter Chip (REQ-006, ADR-0001)
                   if (state.showYogyakartaReturnChip)
                     Positioned(
-                      top: (state.status == MapStatus.failure && state.errorMessage != null)
-                          ? 76
-                          : 16,
+                      top: state.status == MapStatus.failure ? 76 : 16,
                       left: 16,
                       right: 16,
                       child: Center(

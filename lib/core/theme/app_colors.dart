@@ -9,8 +9,10 @@ abstract final class AppColors {
   static const Color primaryDark = Color(0xFF172554);
 
   // Cartographic & Vector Markers
-  static const Color mapPinDefault = Color(0xFF0284C7); // Vivid Sky Blue
+  static const Color mapPinDefault = Color(0xFF0284C7); // Vivid Sky Blue (Inactive POI)
   static const Color mapPinBorder = Color(0xFFFFFFFF);
+  static const Color mapPinActive = Color(0xFF1E3A8A); // Deep Royal Blue (Active/Selected POI, Brand Accent)
+  static const Color mapPinActiveHalo = Color(0x330284C7); // Focus Halo Ring (20% Opacity)
   static const Color userLocationMarker = Color(0xFF2563EB); // Vibrant GPS Blue
   static const Color userLocationHalo = Color(0x332563EB); // Semi-transparent pulse
 

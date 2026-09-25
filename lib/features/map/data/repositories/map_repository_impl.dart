@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/either.dart';
@@ -22,12 +23,20 @@ class MapRepositoryImpl implements MapRepository {
     try {
       final response = await remoteDataSource.getLayerData();
       final entities = response.features.map((f) => f.toEntity()).toList();
+      debugPrint(
+        '[MapRepositoryImpl] Converted ${entities.length} feature model(s) to domain entities.',
+      );
       return Right(entities);
     } on ServerException catch (e) {
+      debugPrint(
+        '[MapRepositoryImpl] ServerException caught: ${e.message} (HTTP ${e.statusCode})',
+      );
       return Left(ServerFailure(e.message, e.statusCode));
     } on NetworkException catch (e) {
+      debugPrint('[MapRepositoryImpl] NetworkException caught: ${e.message}');
       return Left(NetworkFailure(e.message));
-    } catch (e) {
+    } catch (e, stack) {
+      debugPrint('[MapRepositoryImpl] Unexpected error caught: $e\n$stack');
       return Left(ServerFailure('Unexpected error: $e'));
     }
   }
