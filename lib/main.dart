@@ -48,7 +48,7 @@ class MapidApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'MAPID Mobile GIS',
+      title: 'mapid_case_study',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,

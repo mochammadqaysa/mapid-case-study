@@ -218,6 +218,7 @@ class MapViewWidgetState extends State<MapViewWidget> {
             circleStrokeWidth: 1.0,
             circleStrokeColor: '#0284C7',
           ),
+          enableInteraction: false,
         );
         if (!mounted || _controller == null) return;
         // Inner solid circle puck
@@ -231,6 +232,7 @@ class MapViewWidgetState extends State<MapViewWidget> {
             circleStrokeColor: '#FFFFFF',
             circleOpacity: 1.0,
           ),
+          enableInteraction: false,
         );
         if (mounted && _controller != null) {
           setState(() {
@@ -359,19 +361,23 @@ class MapViewWidgetState extends State<MapViewWidget> {
     }
   }
 
-  /// Animates the camera back to Yogyakarta anchor coordinates (REQ-006).
+  /// Animates the camera back to Yogyakarta anchor coordinates with North-Up orientation (REQ-006).
   void animateCameraToYogyakarta() {
     final ctrl = _controller;
     if (!mounted || ctrl == null) return;
 
     try {
       ctrl.animateCamera(
-        CameraUpdate.newLatLngZoom(
-          const LatLng(
-            AppConstants.yogyakartaLatitude,
-            AppConstants.yogyakartaLongitude,
+        CameraUpdate.newCameraPosition(
+          const CameraPosition(
+            target: LatLng(
+              AppConstants.yogyakartaLatitude,
+              AppConstants.yogyakartaLongitude,
+            ),
+            zoom: AppConstants.initialZoom,
+            bearing: 0.0,
+            tilt: 0.0,
           ),
-          AppConstants.initialZoom,
         ),
       );
     } catch (e) {
@@ -387,6 +393,13 @@ class MapViewWidgetState extends State<MapViewWidget> {
     Annotation? annotation,
   ) {
     if (!mounted || _controller == null) return;
+    // Guard: Only react to POI feature layer taps (ignore system or background taps)
+    if (layerId != AppConstants.circleLayerId &&
+        layerId != AppConstants.selectedFeatureCircleLayerId &&
+        layerId != AppConstants.selectedFeatureHaloLayerId) {
+      return;
+    }
+
     _isFeatureTapped = true;
     _tapDebounceTimer?.cancel();
     _tapDebounceTimer = Timer(const Duration(milliseconds: 300), () {
@@ -424,24 +437,18 @@ class MapViewWidgetState extends State<MapViewWidget> {
     return closest;
   }
 
-  /// Animates the camera to the feature coordinate with vertical offset (REQ-004, Section 4.9).
+  /// Animates the camera directly to the feature coordinate (REQ-004).
   void animateCameraToFeature(MapFeatureEntity feature) {
     final ctrl = _controller;
     if (!mounted || ctrl == null) return;
 
     try {
-      final screenHeight = MediaQuery.sizeOf(context).height;
       final currentZoom = ctrl.cameraPosition?.zoom ?? AppConstants.initialZoom;
       final targetZoom = currentZoom < 14.0 ? 14.0 : currentZoom;
 
-      // Web Mercator degrees per pixel at target zoom level
-      final degreesPerPixel = 360.0 / (256.0 * pow(2, targetZoom));
-      // Offset latitude southwards by half sheet height to center feature in upper visible viewport
-      final latOffset = (screenHeight * AppConstants.popupCameraOffsetRatio * 0.5) * degreesPerPixel;
-
       ctrl.animateCamera(
         CameraUpdate.newLatLngZoom(
-          LatLng(feature.latitude - latOffset, feature.longitude),
+          LatLng(feature.latitude, feature.longitude),
           targetZoom,
         ),
       );
@@ -481,6 +488,8 @@ class MapViewWidgetState extends State<MapViewWidget> {
       myLocationTrackingMode: MyLocationTrackingMode.none,
       trackCameraPosition: true,
       compassEnabled: true,
+      compassViewPosition: CompassViewPosition.topRight,
+      compassViewMargins: const Point(16, 76),
       attributionButtonMargins: const Point(-100, -100),
     );
   }
