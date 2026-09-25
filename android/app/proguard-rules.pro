@@ -6,6 +6,9 @@
 -keep class io.flutter.**  { *; }
 -keep class io.flutter.plugins.**  { *; }
 
+# Google Play Core & Deferred Components (R8 warning suppression)
+-dontwarn com.google.android.play.core.**
+
 # MapLibre GL Native SDK & Mapbox Engine
 -keep class org.maplibre.** { *; }
 -keep interface org.maplibre.** { *; }
